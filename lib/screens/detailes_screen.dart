@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
- import 'package:youtube_player_flutter/youtube_player_flutter.dart'; // تم التعليق على حزمة اليوتيوب
+// import 'package:youtube_player_flutter/youtube_player_flutter.dart'; // تم التعليق على حزمة اليوتيوب
 
 class DetailScreen extends StatefulWidget {
   final String assetPath;
@@ -19,13 +19,13 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   String content = "";
-   YoutubePlayerController? _controller; // تم التعليق على المتحكم
+  // YoutubePlayerController? _controller; // تم التعليق على المتحكم
 
   @override
   void initState() {
     super.initState();
     loadText();
-     initYoutube(); // تم التعليق على تهيئة اليوتيوب
+    // initYoutube(); // تم التعليق على تهيئة اليوتيوب
   }
 
   Future<void> loadText() async {
@@ -41,7 +41,7 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  
+  /*
   void initYoutube() {
     if (widget.youtubeUrl != null && widget.youtubeUrl!.isNotEmpty) {
       final videoId =
@@ -58,11 +58,11 @@ class _DetailScreenState extends State<DetailScreen> {
       }
     }
   }
-  
+  */
 
   @override
   void dispose() {
-     _controller?.dispose(); // تم التعليق على تحرير الموارد
+    // _controller?.dispose(); // تم التعليق على تحرير الموارد
     super.dispose();
   }
 
@@ -79,13 +79,13 @@ class _DetailScreenState extends State<DetailScreen> {
           children: [
 
             /// 🔹 فيديو اليوتيوب (تم التعليق على العرض)
-            
+            /*
             if (_controller != null)
               YoutubePlayer(
                 controller: _controller!,
                 showVideoProgressIndicator: true,
               ),
-            
+            */
 
             SizedBox(height: 20),
 
