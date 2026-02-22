@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
+import 'utils/themes.dart'; // استدعاء الملف الجديد
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   State<MyApp> createState() => _MyAppState();
 }
@@ -18,12 +21,9 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: isDarkMode
-          ? ThemeData.dark()
-          : ThemeData(
-              scaffoldBackgroundColor: Colors.transparent,
-              fontFamily: "Arial",
-            ),
+      theme: lightTheme(), // <-- هذه الدالة موجودة في themes.dart
+      darkTheme: darkTheme(), // <-- هذه كذلك
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: HomeScreen(
         isDarkMode: isDarkMode,
         fontSize: fontSize,

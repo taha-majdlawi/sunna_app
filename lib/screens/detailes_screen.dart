@@ -6,11 +6,12 @@ class DetailScreen extends StatefulWidget {
   final String title;
   final double fontSize;
 
-  DetailScreen({
+  const DetailScreen({
+    Key? key,
     required this.assetPath,
     required this.title,
     required this.fontSize,
-  });
+  }) : super(key: key);
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
@@ -26,8 +27,8 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> loadText() async {
-    final loadedContent =
-        await rootBundle.loadString(widget.assetPath);
+    final loadedContent = await rootBundle.loadString(widget.assetPath);
+
     setState(() {
       content = loadedContent;
     });
@@ -35,52 +36,41 @@ class _DetailScreenState extends State<DetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.orange[300],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFFFFFDE7),
-              Color(0xFFFFF3CC),
-              Color(0xFFFFE0A3),
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 4),
+      appBar: AppBar(title: Text(widget.title)),
+      body: content.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.shadow.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontSize: widget.fontSize,
-                  height: 1.8,
-                  color: Colors.brown[900],
+                  child: Text(
+                    content,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: widget.fontSize,
+                      height: 1.9,
+                      color: colors.onSurface,
+                    ),
+                    textAlign: TextAlign.justify,
+                  ),
                 ),
-                textAlign: TextAlign.justify,
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
