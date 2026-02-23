@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sunaa_app/screens/fav_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'detailes_screen.dart';
 
@@ -55,7 +56,23 @@ class _HomeScreenState extends State<HomeScreen> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("السنة النبوية"), centerTitle: true),
+      appBar: AppBar(
+        title: const Text("السنة النبوية"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.favorite),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesScreen(),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
 
       drawer: Drawer(
         child: Column(
@@ -95,6 +112,18 @@ class _HomeScreenState extends State<HomeScreen> {
               leading: Icon(Icons.message, color: colors.primary),
               title: const Text("تواصل عبر واتساب"),
               onTap: openWhatsApp,
+            ),
+            ListTile(
+              leading: Icon(Icons.star, color: colors.primary),
+              title: const Text("المفضلة"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FavoritesScreen(),
+                  ),
+                );
+              },
             ),
           ],
         ),

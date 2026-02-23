@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf/pdf.dart'; // <-- هذا لتعريف PageFormat
 import 'package:pdf/widgets.dart' as pw;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DetailScreen extends StatefulWidget {
   final String assetPath;
@@ -33,6 +34,17 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     loadText();
     loadArabicFont();
+    _checkFavoriteStatus();
+  }
+
+  // التحقق من حالة المفضلة عند فتح الشاشة
+  Future<void> _checkFavoriteStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> favorites =
+        prefs.getStringList('favorite_episodes') ?? [];
+    setState(() {
+      isFavorite = favorites.contains(widget.assetPath);
+    });
   }
 
   // تحميل النص من الملف
@@ -61,21 +73,32 @@ class _DetailScreenState extends State<DetailScreen> {
     ).showSnackBar(const SnackBar(content: Text("تم نسخ النص")));
   }
 
-  // تبديل حالة المفضلة
-  void toggleFavorite() {
-    setState(() {
-      isFavorite = !isFavorite;
-    });
+// تبديل حالة المفضلة وحفظها محلياً
+Future<void> toggleFavorite() async {
+  final prefs = await SharedPreferences.getInstance();
+  List<String> favorites = prefs.getStringList('favorite_episodes') ?? [];
+
+  setState(() {
+    if (isFavorite) {
+      favorites.remove(widget.assetPath);
+      isFavorite = false;
+    } else {
+      favorites.add(widget.assetPath);
+      isFavorite = true;
+    }
+  });
+
+  await prefs.setStringList('favorite_episodes', favorites);
+
+  if (mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          isFavorite
-              ? "تمت إضافة الحلقة للمفضلة"
-              : "تمت إزالة الحلقة من المفضلة",
-        ),
+        content: Text(isFavorite ? "تمت الإضافة للمفضلة" : "تمت الإزالة من المفضلة"),
+        duration: const Duration(seconds: 1),
       ),
     );
   }
+}
 
   Future<void> sharePdf() async {
     // التأكد من وجود نص للمشاركة
