@@ -34,11 +34,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadEpisodes() async {
-    final jsonString = await rootBundle.loadString(
-      'assets/transcripts_list.json',
-    );
+    final jsonString = await rootBundle.loadString('assets/transcripts_list.json');
     final jsonData = json.decode(jsonString);
-
     setState(() {
       episodes = jsonData;
       isLoading = false;
@@ -47,7 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> openWhatsApp() async {
     final Uri url = Uri.parse("https://wa.me/972592345890");
-    await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      debugPrint("Could not launch WhatsApp");
+    }
   }
 
   @override
@@ -65,15 +64,12 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const FavoritesScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const FavoritesScreen()),
               );
             },
           ),
         ],
       ),
-
       drawer: Drawer(
         child: Column(
           children: [
@@ -90,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-
             ListTile(
               title: const Text("حجم الخط"),
               subtitle: Slider(
@@ -98,45 +93,35 @@ class _HomeScreenState extends State<HomeScreen> {
                 min: 14,
                 max: 28,
                 divisions: 7,
-                onChanged: widget.onFontSizeChanged,
+                label: widget.fontSize.round().toString(),
+                onChanged: widget.onFontSizeChanged, // سيقوم بالحفظ تلقائياً الآن
               ),
             ),
-
             SwitchListTile(
               title: const Text("الوضع الليلي"),
               value: widget.isDarkMode,
-              onChanged: widget.onThemeChanged,
+              onChanged: widget.onThemeChanged, // سيقوم بالحفظ تلقائياً الآن
             ),
-
             ListTile(
               leading: Icon(Icons.message, color: colors.primary),
               title: const Text("تواصل عبر واتساب"),
               onTap: openWhatsApp,
             ),
-
-            // --- This is the Favorites navigation tile ---
             ListTile(
               leading: Icon(Icons.star, color: colors.primary),
               title: const Text("المفضلة"),
               trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
-                // 1. Close the drawer first
                 Navigator.pop(context);
-
-                // 2. Navigate to the Favorites Screen
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const FavoritesScreen(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const FavoritesScreen()),
                 );
               },
             ),
-            // ----------------------------------------------
           ],
         ),
       ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -144,17 +129,12 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: episodes.length,
               itemBuilder: (context, index) {
                 final episode = episodes[index];
-
-                final String episodeTitle =
-                    episode["youtube_title"] ?? episode["title"] ?? "";
+                final String episodeTitle = episode["youtube_title"] ?? episode["title"] ?? "";
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     title: Text(
                       "${episode["number"]} - $episodeTitle",
                       style: theme.textTheme.titleMedium?.copyWith(
