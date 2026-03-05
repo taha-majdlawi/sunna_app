@@ -12,6 +12,12 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   List<String> favoritePaths = [];
 
+  // Data Mapping (Replace with your actual links)
+  final Map<String, String> videoLinks = {
+    'assets/data/h1.txt': 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'assets/data/h2.txt': 'https://www.youtube.com/watch?v=example2',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -25,7 +31,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     });
   }
 
-  // دالة لاستخراج اسم الحلقة من المسار (مثال: assets/data/h1.txt تصبح h1)
+  // Remove from favorites directly from this screen
+  Future<void> _removeFromFavorites(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    favoritePaths.remove(path);
+    await prefs.setStringList('favorite_episodes', favoritePaths);
+    setState(() {});
+  }
+
   String _getTitleFromPath(String path) {
     return path.split('/').last.replaceAll('.txt', '');
   }
@@ -33,34 +46,55 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("المفضلة")),
+      appBar: AppBar(
+        title: const Text("المفضلة"),
+        centerTitle: true,
+      ),
       body: favoritePaths.isEmpty
           ? const Center(child: Text("لا توجد حلقات في المفضلة بعد"))
-          : // الكود المصحح لـ ListView.builder
-            ListView.builder(
-              itemCount: favoritePaths.length, // هنا نستخدم length للقائمة
+          : ListView.builder(
+              itemCount: favoritePaths.length,
               itemBuilder: (context, index) {
-                // أضفنا index هنا ليكون المعامل الثاني
                 final path = favoritePaths[index];
                 final title = _getTitleFromPath(path);
+                
+                // 1. Get the URL from our map, or provide a fallback
+                final String ytUrl = videoLinks[path] ?? "";
 
-                return ListTile(
-                  leading: const Icon(Icons.star, color: Colors.amber),
-                  title: Text("حلقة: $title", textDirection: TextDirection.rtl),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => DetailScreen(
-                          assetPath: path,
-                          title: title,
-                          fontSize: 18.0,
+                return Dismissible(
+                  key: Key(path),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (direction) => _removeFromFavorites(path),
+                  child: ListTile(
+                    leading: const Icon(Icons.play_circle_fill, color: Colors.red),
+                    title: Text(
+                      "حلقة: $title", 
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: const Text("اسحب للحذف من المفضلة", textDirection: TextDirection.rtl, style: TextStyle(fontSize: 12)),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DetailScreen(
+                            youtubeUrl: ytUrl, // 2. Pass the retrieved URL here
+                            assetPath: path,
+                            title: title,
+                            fontSize: 18.0,
+                          ),
                         ),
-                      ),
-                    );
-                    _loadFavorites(); // تحديث القائمة عند العودة
-                  },
+                      );
+                      _loadFavorites(); 
+                    },
+                  ),
                 );
               },
             ),

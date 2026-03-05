@@ -113,10 +113,17 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text("تواصل عبر واتساب"),
               onTap: openWhatsApp,
             ),
+
+            // --- This is the Favorites navigation tile ---
             ListTile(
               leading: Icon(Icons.star, color: colors.primary),
               title: const Text("المفضلة"),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 14),
               onTap: () {
+                // 1. Close the drawer first
+                Navigator.pop(context);
+
+                // 2. Navigate to the Favorites Screen
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -125,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+            // ----------------------------------------------
           ],
         ),
       ),
@@ -164,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => DetailScreen(
+                            youtubeUrl: episode["youtube_url"] ?? "",
                             assetPath: episode["path"],
                             title: "${episode["number"]} - $episodeTitle",
                             fontSize: widget.fontSize,
