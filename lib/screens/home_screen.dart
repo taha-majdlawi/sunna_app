@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // تأكد من إضافة المكتبة في pubspec.yaml
+import 'package:shared_preferences/shared_preferences.dart';
 import 'fav_screen.dart';
 import 'detailes_screen.dart';
 
@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> episodes = [];
   List<Map<String, dynamic>> filteredEpisodes = [];
   bool isLoading = true;
-  String? lastReadEpisodeNumber; // لتخزين رقم آخر حلقة تم قراءتها
+  String? lastReadEpisodeNumber;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchType = "الكل";
@@ -39,10 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     loadEpisodes();
-    _loadProgress(); // تحميل التقدم عند تشغيل الشاشة
+    _loadProgress();
   }
 
-  // تحميل رقم آخر حلقة من الذاكرة
   Future<void> _loadProgress() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -50,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // حفظ التقدم
   Future<void> _saveProgress(String number) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('last_read_number', number);
@@ -76,27 +74,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void searchEpisodes(String value) {
     final query = value.trim();
-    if (query.isEmpty) {
-      setState(() => filteredEpisodes = List.from(episodes));
-      return;
-    }
     setState(() {
-      filteredEpisodes = episodes.where((episode) {
-        final title = (episode["youtube_title"] ?? episode["title"] ?? "").toString().toLowerCase();
-        final rawNumber = (episode["number"] ?? "").toString();
-        final int? entryNumber = int.tryParse(rawNumber);
-        final int? searchNumber = int.tryParse(query);
+      if (query.isEmpty) {
+        filteredEpisodes = List.from(episodes);
+      } else {
+        filteredEpisodes = episodes.where((episode) {
+          final title = (episode["youtube_title"] ?? episode["title"] ?? "").toString().toLowerCase();
+          final rawNumber = (episode["number"] ?? "").toString();
+          final int? entryNumber = int.tryParse(rawNumber);
+          final int? searchNumber = int.tryParse(query);
 
-        if (_searchType == "الرقم") {
-          return entryNumber != null && searchNumber != null && entryNumber == searchNumber;
-        } else if (_searchType == "العنوان") {
-          return title.contains(query.toLowerCase());
-        } else {
-          bool titleMatch = title.contains(query.toLowerCase());
-          bool numberMatch = (entryNumber != null && searchNumber != null && entryNumber == searchNumber) || rawNumber.contains(query);
-          return titleMatch || numberMatch;
-        }
-      }).toList();
+          if (_searchType == "الرقم") {
+            return entryNumber != null && searchNumber != null && entryNumber == searchNumber;
+          } else if (_searchType == "العنوان") {
+            return title.contains(query.toLowerCase());
+          } else {
+            return title.contains(query.toLowerCase()) || 
+                   (entryNumber != null && searchNumber != null && entryNumber == searchNumber) || 
+                   rawNumber.contains(query);
+          }
+        }).toList();
+      }
     });
   }
 
@@ -107,9 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToDetail(int index, Map<String, dynamic> episode) {
-    // حفظ التقدم قبل الانتقال
     _saveProgress(episode["number"].toString());
-
     final String episodeTitle = episode["youtube_title"] ?? episode["title"] ?? "";
     Navigator.push(
       context,
@@ -123,7 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
           episodes: episodes,
         ),
       ),
-    ).then((_) => _loadProgress()); // تحديث الواجهة عند العودة
+    ).then((_) => _loadProgress());
   }
 
   Future<void> openWhatsApp() async {
@@ -139,49 +135,108 @@ class _HomeScreenState extends State<HomeScreen> {
     final colors = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("السنة النبوية", style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.casino_outlined),
-            tooltip: "حديث عشوائي",
-            onPressed: openRandomEpisode,
-          ),
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const FavoritesScreen()),
-            ),
-          ),
-        ],
-      ),
       drawer: _buildDrawer(theme, colors),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildSearchSection(colors, theme),
-                
-                // --- ميزة متابعة التقدم (بطاقة الاستئناف) ---
-                if (lastReadEpisodeNumber != null && _searchController.text.isEmpty)
-                  _buildResumeCard(theme, colors),
+          : CustomScrollView(
+              slivers: [
+                // 1. شريط العنوان الذي يختفي ويترك مساحة للبحث
+                SliverAppBar(
+                  floating: true,
+                  pinned: true,
+                  snap: true,
+                  centerTitle: true,
+                  title: const Text("السنة النبوية", style: TextStyle(fontWeight: FontWeight.bold)),
+                  actions: [
+                    IconButton(icon: const Icon(Icons.casino_outlined), onPressed: openRandomEpisode),
+                    IconButton(
+                      icon: const Icon(Icons.favorite_border),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen())),
+                    ),
+                  ],
+                ),
 
-                _buildListHeader(theme),
-                _buildEpisodesList(colors),
+                // 2. منطقة البحث التي تختفي تدريجياً (SliverToBoxAdapter)
+                SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      _buildSearchSection(colors, theme),
+                      if (lastReadEpisodeNumber != null && _searchController.text.isEmpty)
+                        _buildResumeCard(theme, colors),
+                      _buildListHeader(theme),
+                    ],
+                  ),
+                ),
+
+                // 3. قائمة الحلقات
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final episode = filteredEpisodes[index];
+                        final String episodeNum = episode["number"].toString();
+                        final String title = episode["youtube_title"] ?? episode["title"] ?? "";
+                        final bool isLastRead = lastReadEpisodeNumber == episodeNum;
+
+                        return _buildEpisodeItem(episode, episodeNum, title, isLastRead, colors, index);
+                      },
+                      childCount: filteredEpisodes.length,
+                    ),
+                  ),
+                ),
               ],
             ),
     );
   }
 
-  Widget _buildResumeCard(ThemeData theme, ColorScheme colors) {
-    // البحث عن بيانات الحلقة الأخيرة من القائمة الأصلية
-    final lastEpisode = episodes.firstWhere(
-      (e) => e["number"].toString() == lastReadEpisodeNumber,
-      orElse: () => {},
+  Widget _buildEpisodeItem(Map episode, String episodeNum, String title, bool isLastRead, ColorScheme colors, int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: isLastRead ? 2 : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(
+          color: isLastRead ? colors.primary : colors.outlineVariant.withOpacity(0.5),
+          width: isLastRead ? 1.5 : 1,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: _buildLeadingIcon(episodeNum, isLastRead, colors),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15), textAlign: TextAlign.right),
+        trailing: Icon(Icons.arrow_back_ios_new, size: 16, color: colors.primary),
+        onTap: () => _navigateToDetail(index, episode.cast<String, dynamic>()),
+      ),
     );
+  }
 
+  Widget _buildLeadingIcon(String episodeNum, bool isLastRead, ColorScheme colors) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 45, height: 45,
+          decoration: BoxDecoration(color: isLastRead ? colors.primary : colors.primaryContainer, shape: BoxShape.circle),
+          child: Center(
+            child: Text(episodeNum, style: TextStyle(color: isLastRead ? Colors.white : colors.onPrimaryContainer, fontWeight: FontWeight.bold)),
+          ),
+        ),
+        if (isLastRead)
+          Positioned(
+            bottom: 0, right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+              child: const Icon(Icons.check, size: 10, color: Colors.white),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildResumeCard(ThemeData theme, ColorScheme colors) {
+    final lastEpisode = episodes.firstWhere((e) => e["number"].toString() == lastReadEpisodeNumber, orElse: () => {});
     if (lastEpisode.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -196,16 +251,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListTile(
           leading: Icon(Icons.history, color: colors.primary),
           title: const Text("تابع القراءة", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          subtitle: Text(
-            "${lastEpisode['number']} - ${lastEpisode['youtube_title'] ?? lastEpisode['title']}",
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          subtitle: Text("${lastEpisode['number']} - ${lastEpisode['youtube_title'] ?? lastEpisode['title']}", maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: const Icon(Icons.arrow_forward_ios, size: 14),
-          onTap: () {
-            int idx = episodes.indexOf(lastEpisode);
-            _navigateToDetail(idx, lastEpisode);
-          },
+          onTap: () => _navigateToDetail(episodes.indexOf(lastEpisode), lastEpisode),
         ),
       ),
     );
@@ -228,20 +276,11 @@ class _HomeScreenState extends State<HomeScreen> {
               hintText: _searchType == "الرقم" ? "أدخل رقم الحديث..." : "ابحث في العناوين...",
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        searchEpisodes("");
-                      },
-                    )
+                  ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchController.clear(); searchEpisodes(""); })
                   : null,
               filled: true,
               fillColor: theme.cardColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
             onChanged: searchEpisodes,
           ),
@@ -255,16 +294,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: FilterChip(
                   label: Text(type),
                   selected: isSelected,
-                  onSelected: (val) {
-                    setState(() {
-                      _searchType = type;
-                      searchEpisodes(_searchController.text);
-                    });
-                  },
+                  onSelected: (val) { setState(() { _searchType = type; searchEpisodes(_searchController.text); }); },
                   selectedColor: colors.primary,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : colors.onSurface,
-                  ),
+                  labelStyle: TextStyle(color: isSelected ? Colors.white : colors.onSurface),
                 ),
               );
             }).toList(),
@@ -287,101 +319,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEpisodesList(ColorScheme colors) {
-    return Expanded(
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        itemCount: filteredEpisodes.length,
-        itemBuilder: (context, index) {
-          final episode = filteredEpisodes[index];
-          final String episodeNum = episode["number"].toString();
-          final String title = episode["youtube_title"] ?? episode["title"] ?? "";
-          final bool isLastRead = lastReadEpisodeNumber == episodeNum;
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            elevation: isLastRead ? 2 : 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: BorderSide(
-                color: isLastRead ? colors.primary : colors.outlineVariant.withOpacity(0.5),
-                width: isLastRead ? 1.5 : 1,
-              ),
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(12),
-              leading: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: isLastRead ? colors.primary : colors.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        episodeNum,
-                        style: TextStyle(
-                          color: isLastRead ? Colors.white : colors.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (isLastRead)
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-                        child: const Icon(Icons.check, size: 10, color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
-              title: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                textAlign: TextAlign.right,
-              ),
-              trailing: Icon(Icons.arrow_back_ios_new, size: 16, color: colors.primary),
-              onTap: () => _navigateToDetail(index, episode),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildDrawer(ThemeData theme, ColorScheme colors) {
     return Drawer(
       child: Column(
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [colors.primary, colors.primaryContainer],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            decoration: BoxDecoration(gradient: LinearGradient(colors: [colors.primary, colors.primaryContainer])),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.menu_book, size: 40, color: Colors.white),
                   const SizedBox(height: 10),
-                  Text(
-                    "تحت إشراف الأستاذ خالد العتيبي",
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  Text("تحت إشراف الأستاذ خالد العتيبي", style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                 ],
               ),
             ),
@@ -389,13 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ListTile(
             title: const Text("حجم الخط"),
             leading: const Icon(Icons.format_size),
-            subtitle: Slider(
-              value: widget.fontSize,
-              min: 14,
-              max: 28,
-              divisions: 7,
-              onChanged: widget.onFontSizeChanged,
-            ),
+            subtitle: Slider(value: widget.fontSize, min: 14, max: 28, divisions: 7, onChanged: widget.onFontSizeChanged),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
@@ -404,11 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onChanged: widget.onThemeChanged,
           ),
           const Divider(),
-          ListTile(
-            leading: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green),
-            title: const Text("تواصل عبر واتساب"),
-            onTap: openWhatsApp,
-          ),
+          ListTile(leading: const FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green), title: const Text("تواصل عبر واتساب"), onTap: openWhatsApp),
         ],
       ),
     );
