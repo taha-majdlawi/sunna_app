@@ -31,8 +31,6 @@ class _DetailScreenState extends State<DetailScreen> {
   String content = "";
   bool isFavorite = false;
   late YoutubePlayerController _ytController;
-  
-  // متغيرات الملاحظات المحسنة
   final TextEditingController _notesController = TextEditingController();
   bool _isNotesVisible = false;
 
@@ -41,7 +39,7 @@ class _DetailScreenState extends State<DetailScreen> {
     super.initState();
     loadText();
     _checkFavoriteStatus();
-    _loadSavedNote(); // تحميل الملاحظات فور فتح الشاشة
+    _loadSavedNote();
 
     final videoId = YoutubePlayer.convertUrlToId(widget.youtubeUrl) ?? "";
     _ytController = YoutubePlayerController(
@@ -49,6 +47,11 @@ class _DetailScreenState extends State<DetailScreen> {
       flags: const YoutubePlayerFlags(
         autoPlay: false,
         mute: false,
+        disableDragSeek: false,
+        loop: false,
+        isLive: false,
+        forceHD: false,
+        enableCaption: true,
       ),
     );
   }
@@ -60,7 +63,7 @@ class _DetailScreenState extends State<DetailScreen> {
     super.dispose();
   }
 
-  // تحميل الملاحظة المحفوظة باستخدام مسار الملف كمفتاح فريد
+  // --- Functions ---
   Future<void> _loadSavedNote() async {
     final prefs = await SharedPreferences.getInstance();
     String? savedNote = prefs.getString('note_${widget.assetPath}');
@@ -71,7 +74,6 @@ class _DetailScreenState extends State<DetailScreen> {
     }
   }
 
-  // حفظ الملاحظة تلقائياً عند الكتابة
   Future<void> _saveNote(String text) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('note_${widget.assetPath}', text);
@@ -129,12 +131,14 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Future<void> shareText() async {
     if (content.isEmpty) return;
-    await Share.share("$content\n\nالمصدر: ${widget.title}", subject: "السنة النبوية");
+    await Share.share(
+      "$content\n\nالمصدر: ${widget.title}",
+      subject: "سلسلة صناع",
+    );
   }
 
   void _navigate(int newIndex) {
     if (newIndex < 0 || newIndex >= widget.episodes.length) return;
-    
     final target = widget.episodes[newIndex];
     final String targetTitle = target["youtube_title"] ?? target["title"] ?? "";
 
@@ -163,14 +167,22 @@ class _DetailScreenState extends State<DetailScreen> {
         controller: _ytController,
         showVideoProgressIndicator: true,
         progressIndicatorColor: colors.primary,
+        // تحديد عرض المشغل ليكون متجاوباً
+        width: MediaQuery.of(context).size.width > 800 ? 650 : double.infinity,
       ),
       builder: (context, player) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(widget.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            title: Text(
+              widget.title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
             actions: [
               IconButton(
-                icon: Icon(isFavorite ? Icons.star : Icons.star_border, color: Colors.amber),
+                icon: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: Colors.amber,
+                ),
                 onPressed: toggleFavorite,
               ),
               const SizedBox(width: 8),
@@ -178,129 +190,195 @@ class _DetailScreenState extends State<DetailScreen> {
           ),
           body: content.isEmpty
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      if (widget.youtubeUrl.isNotEmpty) player,
-                      
-                      const SizedBox(height: 15),
-
-                      // أزرار الأدوات
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildActionButton(Icons.copy_rounded, "نسخ", copyText, colors),
-                            _buildActionButton(Icons.share_rounded, "مشاركة", shareText, colors),
-                            _buildActionButton(
-                              _isNotesVisible ? Icons.edit_note : Icons.note_add_outlined,
-                              "ملاحظات",
-                              () => setState(() => _isNotesVisible = !_isNotesVisible),
-                              colors,
-                              isActive: _isNotesVisible
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // قسم الملاحظات الشخصية مع أنيميشن
-                      AnimatedCrossFade(
-                        firstChild: const SizedBox(width: double.infinity),
-                        secondChild: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: colors.primaryContainer.withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: colors.primary.withOpacity(0.2)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.edit_note, size: 20, color: colors.primary),
-                                    const SizedBox(width: 8),
-                                    const Text("ملاحظاتك الشخصية:", 
-                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                TextField(
-                                  controller: _notesController,
-                                  maxLines: 4,
-                                  textAlign: TextAlign.right,
-                                  style: const TextStyle(fontSize: 14),
-                                  decoration: const InputDecoration(
-                                    hintText: "اكتب ما استنبطته من هذا الدرس هنا...",
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(fontSize: 13, fontStyle: FontStyle.italic),
+              : Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          if (widget.youtubeUrl.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 15,
+                                horizontal: 10,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  // قيد العرض الأقصى للفيديو (650 بكسل)
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 650,
                                   ),
-                                  onChanged: _saveNote,
+                                  child: AspectRatio(
+                                    aspectRatio: 16 / 9,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(15),
+                                      child: player,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          const SizedBox(height: 15),
+
+                          // أزرار الأدوات
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildActionButton(
+                                  Icons.copy_rounded,
+                                  "نسخ",
+                                  copyText,
+                                  colors,
+                                ),
+                                _buildActionButton(
+                                  Icons.share_rounded,
+                                  "مشاركة",
+                                  shareText,
+                                  colors,
+                                ),
+                                _buildActionButton(
+                                  _isNotesVisible
+                                      ? Icons.edit_note
+                                      : Icons.note_add_outlined,
+                                  "ملاحظات",
+                                  () => setState(
+                                    () => _isNotesVisible = !_isNotesVisible,
+                                  ),
+                                  colors,
+                                  isActive: _isNotesVisible,
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                        crossFadeState: _isNotesVisible ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                        duration: const Duration(milliseconds: 300),
-                      ),
 
-                      // عرض نص الحديث في بطاقة أنيقة
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: Card(
-                          elevation: 0,
-                          color: colors.surfaceVariant.withOpacity(0.2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(color: colors.outlineVariant.withOpacity(0.5)),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Directionality(
-                              textDirection: TextDirection.rtl,
-                              child: SelectableText(
-                                content,
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontSize: widget.fontSize,
-                                  height: 1.8,
-                                  letterSpacing: 0.2,
+                          // قسم الملاحظات الشخصية
+                          AnimatedCrossFade(
+                            firstChild: const SizedBox(width: double.infinity),
+                            secondChild: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colors.primaryContainer.withOpacity(0.3),
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: colors.primary.withOpacity(0.2),
+                                  ),
                                 ),
-                                textAlign: TextAlign.justify,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.edit_note,
+                                          size: 20,
+                                          color: colors.primary,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Text(
+                                          "ملاحظاتك الشخصية:",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _notesController,
+                                      maxLines: 4,
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(fontSize: 14),
+                                      decoration: const InputDecoration(
+                                        hintText: "اكتب ما استنبطته من هذا الدرس هنا...",
+                                        border: InputBorder.none,
+                                        hintStyle: TextStyle(
+                                          fontSize: 13,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                      onChanged: _saveNote,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            crossFadeState: _isNotesVisible
+                                ? CrossFadeState.showSecond
+                                : CrossFadeState.showFirst,
+                            duration: const Duration(milliseconds: 300),
+                          ),
+
+                          // عرض النص
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            child: Card(
+                              elevation: 0,
+                              color: colors.surfaceVariant.withOpacity(0.2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: colors.outlineVariant.withOpacity(0.5),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(20),
+                                child: Directionality(
+                                  textDirection: TextDirection.rtl,
+                                  child: SelectableText(
+                                    content,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontSize: widget.fontSize,
+                                      height: 1.8,
+                                      letterSpacing: 0.2,
+                                    ),
+                                    textAlign: TextAlign.justify,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
 
-                      // أزرار التنقل بين الأحاديث
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildNavigationButton(
-                              label: "السابق",
-                              icon: Icons.arrow_back_ios_new,
-                              onPressed: widget.index > 0 ? () => _navigate(widget.index - 1) : null,
-                              colors: colors,
-                              isNext: false,
+                          // أزرار التنقل
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
                             ),
-                            _buildNavigationButton(
-                              label: "التالي",
-                              icon: Icons.arrow_forward_ios,
-                              onPressed: widget.index < widget.episodes.length - 1 ? () => _navigate(widget.index + 1) : null,
-                              colors: colors,
-                              isNext: true,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _buildNavigationButton(
+                                  label: "السابق",
+                                  icon: Icons.arrow_back_ios_new,
+                                  onPressed: widget.index > 0
+                                      ? () => _navigate(widget.index - 1)
+                                      : null,
+                                  colors: colors,
+                                  isNext: false,
+                                ),
+                                _buildNavigationButton(
+                                  label: "التالي",
+                                  icon: Icons.arrow_forward_ios,
+                                  onPressed: widget.index < widget.episodes.length - 1
+                                      ? () => _navigate(widget.index + 1)
+                                      : null,
+                                  colors: colors,
+                                  isNext: true,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(height: 40),
+                        ],
                       ),
-                      const SizedBox(height: 40),
-                    ],
+                    ),
                   ),
                 ),
         );
@@ -308,7 +386,14 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap, ColorScheme colors, {bool isActive = false}) {
+  // --- Widgets ---
+  Widget _buildActionButton(
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+    ColorScheme colors, {
+    bool isActive = false,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -319,13 +404,26 @@ class _DetailScreenState extends State<DetailScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isActive ? colors.primary : colors.primary.withOpacity(0.1),
+                color: isActive
+                    ? colors.primary
+                    : colors.primary.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: isActive ? colors.onPrimary : colors.primary, size: 24),
+              child: Icon(
+                icon,
+                color: isActive ? colors.onPrimary : colors.primary,
+                size: 24,
+              ),
             ),
             const SizedBox(height: 6),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: colors.primary)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: colors.primary,
+              ),
+            ),
           ],
         ),
       ),
@@ -333,9 +431,9 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Widget _buildNavigationButton({
-    required String label, 
-    required IconData icon, 
-    required VoidCallback? onPressed, 
+    required String label,
+    required IconData icon,
+    required VoidCallback? onPressed,
     required ColorScheme colors,
     required bool isNext,
   }) {
@@ -347,16 +445,12 @@ class _DetailScreenState extends State<DetailScreen> {
         backgroundColor: colors.primary.withOpacity(0.05),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      // نعكس ترتيب الأيقونة والنص بناءً على كونه التالي أو السابق
       icon: isNext ? const SizedBox() : Icon(icon, size: 16),
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-          if (isNext) ...[
-            const SizedBox(width: 8),
-            Icon(icon, size: 16),
-          ]
+          if (isNext) ...[const SizedBox(width: 8), Icon(icon, size: 16)],
         ],
       ),
     );

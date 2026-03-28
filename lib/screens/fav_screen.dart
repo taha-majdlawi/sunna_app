@@ -45,7 +45,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("المفضلة"), centerTitle: true),
+    
       body: favoritePaths.isEmpty
           ? const Center(
               child: Text(
