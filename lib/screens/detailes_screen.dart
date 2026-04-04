@@ -129,19 +129,23 @@ class _DetailScreenState extends State<DetailScreen> {
     await prefs.setStringList('favorite_episodes', favorites);
   }
 
-Future<void> shareText() async {
-  if (content.isEmpty) return;
+  Future<void> shareText() async {
+    if (content.isEmpty) return;
 
-  // الحصول على مكان الزر في الشاشة لإظهار القائمة منه في iPad
-  final box = context.findRenderObject() as RenderBox?;
+    final RenderBox? box = context.findRenderObject() as RenderBox?;
 
-  await Share.share(
-    "$content\n\nالمصدر: ${widget.title}",
-    subject: "سلسلة صناع",
-    // هذا السطر ضروري جداً لتجنب المشاكل في iPad
-    sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
-  );
-}
+    // Create the origin rectangle ONLY if box is not null
+    // If it's null (rare), we fall back to a default or skip
+    final Rect? shareRect = box != null
+        ? (box.localToGlobal(Offset.zero) & box.size)
+        : null;
+
+    await Share.share(
+      "$content\n\nالمصدر: ${widget.title}",
+      subject: "سلسلة صناع",
+      sharePositionOrigin: shareRect,
+    );
+  }
 
   void _navigate(int newIndex) {
     if (newIndex < 0 || newIndex >= widget.episodes.length) return;
@@ -269,7 +273,9 @@ Future<void> shareText() async {
                               child: Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: colors.primaryContainer.withOpacity(0.3),
+                                  color: colors.primaryContainer.withOpacity(
+                                    0.3,
+                                  ),
                                   borderRadius: BorderRadius.circular(15),
                                   border: Border.all(
                                     color: colors.primary.withOpacity(0.2),
@@ -302,7 +308,8 @@ Future<void> shareText() async {
                                       textAlign: TextAlign.right,
                                       style: const TextStyle(fontSize: 14),
                                       decoration: const InputDecoration(
-                                        hintText: "اكتب ما استنبطته من هذا الدرس هنا...",
+                                        hintText:
+                                            "اكتب ما استنبطته من هذا الدرس هنا...",
                                         border: InputBorder.none,
                                         hintStyle: TextStyle(
                                           fontSize: 13,
@@ -372,7 +379,8 @@ Future<void> shareText() async {
                                 _buildNavigationButton(
                                   label: "التالي",
                                   icon: Icons.arrow_forward_ios,
-                                  onPressed: widget.index < widget.episodes.length - 1
+                                  onPressed:
+                                      widget.index < widget.episodes.length - 1
                                       ? () => _navigate(widget.index + 1)
                                       : null,
                                   colors: colors,
