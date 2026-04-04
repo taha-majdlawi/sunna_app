@@ -129,13 +129,19 @@ class _DetailScreenState extends State<DetailScreen> {
     await prefs.setStringList('favorite_episodes', favorites);
   }
 
-  Future<void> shareText() async {
-    if (content.isEmpty) return;
-    await Share.share(
-      "$content\n\nالمصدر: ${widget.title}",
-      subject: "سلسلة صناع",
-    );
-  }
+Future<void> shareText() async {
+  if (content.isEmpty) return;
+
+  // الحصول على مكان الزر في الشاشة لإظهار القائمة منه في iPad
+  final box = context.findRenderObject() as RenderBox?;
+
+  await Share.share(
+    "$content\n\nالمصدر: ${widget.title}",
+    subject: "سلسلة صناع",
+    // هذا السطر ضروري جداً لتجنب المشاكل في iPad
+    sharePositionOrigin: box!.localToGlobal(Offset.zero) & box.size,
+  );
+}
 
   void _navigate(int newIndex) {
     if (newIndex < 0 || newIndex >= widget.episodes.length) return;
