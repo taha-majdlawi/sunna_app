@@ -43,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // قائمة العناوين الديناميكية للـ AppBar
   final List<String> _titles = [
-    "السنة النبوية",
+    "السيرة النبوية",
     "الأذكار اليومية",
     "المسبحة الإلكترونية",
     "المفضلة",
@@ -455,15 +455,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 colors: [colors.primary, colors.primary.withOpacity(0.7)],
               ),
             ),
-            child: const Center(
-              child: Text(
-                "الإعدادات",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+            child: Column(
+              children: [
+                const Center(
+                  child: Text(
+                    "الإعدادات",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
+                Spacer(),
+                Text(
+                  textAlign: TextAlign.right,
+                  "برعاية أخوكم خالد بن سعيد العتيبي",
+                ),
+              ],
             ),
           ),
           ListTile(
