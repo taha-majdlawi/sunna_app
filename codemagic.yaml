@@ -20,22 +20,19 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          
+          # إجبار المشروع على وضع التوقيع اليدوي واستخدام الملفات المجلوبة
+          xcode-project use-profiles --set-target-bundle-id
+          
           rm /tmp/apple_key.p8
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # 1. بناء الـ Archive لـ iOS حصراً
-          flutter build ipa --release --no-codesign
-          
-          # 2. البحث عن الـ workspace الصحيح داخل مجلد ios فقط لضمان عدم الخلط مع macos
-          WORKSPACE=$(find ios -name "*.xcworkspace" | head -1)
-          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
-          
-          # 3. التصدير النهائي باستخدام أداة Codemagic مع تحديد المسار
-          xcode-project build-ipa \
-            --workspace "$WORKSPACE" \
-            --scheme "$SCHEME"
+          # بناء ملف الـ IPA مباشرة مع تمرير إعدادات التصدير الآلية
+          flutter build ipa --release \
+            --export-method app-store \
+            --build-number=20 \
+            --flavor Runner
     artifacts:
       - build/ios/ipa/*.ipa
