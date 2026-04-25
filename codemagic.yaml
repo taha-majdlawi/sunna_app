@@ -25,6 +25,6 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        auth: integration
-        integrations:
-          app_store_connect: Sunaa Key # استبدل "Sunaa Key" بالاسم الذي اخترته للمفتاح عند ربطه في الخطوة السابقة
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        p8_key: $APP_STORE_CONNECT_KEY 
