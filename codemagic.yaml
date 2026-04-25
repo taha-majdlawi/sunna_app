@@ -1,0 +1,27 @@
+workflows:
+  ios-release:
+    name: Sunaa App iOS Release
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      groups:
+        - app_store_credentials 
+    scripts:
+      - name: Set up code signing settings on Codemagic
+        script: | 
+          keychain initialize
+          app-store-connect fetch-signing-files $(bundle_id) --project-type ios --create
+          keychain add-certificates
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build iOS IPA
+        script: | 
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
