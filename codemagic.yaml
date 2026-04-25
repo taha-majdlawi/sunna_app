@@ -13,7 +13,7 @@ workflows:
         script: | 
           keychain initialize
           # قمت بتصحيح هذا الأمر لك (حذف project-type)
-          app-store-connect fetch-signing-files "com.taha.sunaa" --create
+          app-store-connect fetch-signing-files "com.example.sunaaApp" --create
           keychain add-certificates
       - name: Get Flutter packages
         script: flutter pub get
