@@ -24,9 +24,9 @@ workflows:
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          xcode-project build-ipa \
-            --workspace "$(find . -name "*.xcworkspace" | head -1)" \
-            --scheme "$(find . -name "*.xcworkspace" | xargs basename -s .xcworkspace | head -1)" \
-            --bundle-id "com.example.sunaaApp"
+          # هذا الأمر هو الأكثر استقراراً، سيقوم بالبناء والتوقيع باستخدام الشهادات المثبتة في الـ Keychain
+          flutter build ipa --release \
+            --export-method app-store \
+            --build-number=15
     artifacts:
       - build/ios/ipa/*.ipa
