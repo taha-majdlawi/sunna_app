@@ -1,4 +1,14 @@
-scripts:
+workflows:
+  ios-release:
+    name: Sunaa App iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      groups:
+        - app_store_credentials 
+    scripts:
       - name: Set up code signing
         script: | 
           keychain initialize
@@ -14,8 +24,9 @@ scripts:
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # سنقوم بالبناء والتصدير في خطوة واحدة ذكية
           xcode-project build-ipa \
             --workspace "$(find . -name "*.xcworkspace" | head -1)" \
             --scheme "$(find . -name "*.xcworkspace" | xargs basename -s .xcworkspace | head -1)" \
             --bundle-id "com.example.sunaaApp"
+    artifacts:
+      - build/ios/ipa/*.ipa
