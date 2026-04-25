@@ -1,7 +1,7 @@
 workflows:
   ios-release:
     name: Sunaa App iOS Release
-    instance_type: mac_mini_m1
+    instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
       flutter: stable
@@ -9,18 +9,21 @@ workflows:
       groups:
         - app_store_credentials 
     scripts:
-      - name: Set up code signing settings
+      - name: Set up code signing
         script: | 
           keychain initialize
-          # سيقوم كودماجيك بمحاولة جلب ملفات التوقيع آلياً باستخدام البيانات التي أدخلتها في المجموعات
-          app-store-connect fetch-signing-files "com.your.bundle.id" --project-type ios --create
+          # قمت بتصحيح هذا الأمر لك (حذف project-type)
+          app-store-connect fetch-signing-files "com.taha.sunaa" --create
           keychain add-certificates
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
-    
+    publishing:
+      app_store_connect:
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        p8_key: $APP_STORE_CONNECT_KEY
