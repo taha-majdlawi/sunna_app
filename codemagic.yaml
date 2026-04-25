@@ -20,21 +20,36 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          
-          # إجبار ملفات Xcode على نسيان التوقيع التلقائي واستخدام الملفات الجديدة
           xcode-project use-profiles --set-target-bundle-id
+          
+          # إنشاء ملف التصدير يدوياً لحل مشكلة "does not exist"
+          cat <<EOF > /Users/builder/export_options.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>uploadBitcode</key>
+              <false/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>manual</string>
+          </dict>
+          </plist>
+          EOF
           
           rm /tmp/apple_key.p8
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # المرحلة 1: بناء الأرشيف بدون توقيع لتجنب اعتراض Xcode
-          flutter build ipa --release --no-codesign
-          
-          # المرحلة 2: التوقيع اليدوي والتصدير باستخدام الشهادات المجلوبة
-          xcode-project build-ipa \
-            --workspace "ios/Runner.xcworkspace" \
-            --scheme "Runner"
+          # استخدام ملف الإعدادات الذي أنشأناه للتو
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --build-number=23
     artifacts:
       - build/ios/ipa/*.ipa
