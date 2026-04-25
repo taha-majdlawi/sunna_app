@@ -19,14 +19,17 @@ workflows:
             --p8-key /tmp/apple_key.p8 \
             --create
           keychain add-certificates
+          
+          # السطر السحري: ربط الشهادات بمشروع Xcode
+          xcode-project use-profiles
+          
           rm /tmp/apple_key.p8
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # هذا الأمر هو الأكثر استقراراً، سيقوم بالبناء والتوقيع باستخدام الشهادات المثبتة في الـ Keychain
           flutter build ipa --release \
             --export-method app-store \
-            --build-number=15
+            --build-number=16
     artifacts:
       - build/ios/ipa/*.ipa
