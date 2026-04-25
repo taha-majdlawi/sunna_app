@@ -24,4 +24,7 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        auth: integration
+        # هنا نستخدم المتغيرات التي أضفتها أنت في المجموعات (Groups)
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        p8_key: $APP_STORE_CONNECT_KEY
