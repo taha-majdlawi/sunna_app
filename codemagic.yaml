@@ -12,21 +12,24 @@ workflows:
       - name: Set up code signing
         script: | 
           keychain initialize
-          # تحويل النص إلى ملف مؤقت لحل مشكلة unrecognized arguments
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
-          
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --p8-key /tmp/apple_key.p8 \
             --create
-          
           keychain add-certificates
           rm /tmp/apple_key.p8
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+          # التعديل هنا: حذفنا المسار القديم وأضفنا الخيار الآلي
+          flutter build ipa --release --no-codesign
+          
+          # هذا الأمر سيقوم بعمل الـ Archive النهائي باستخدام الشهادات التي جلبناها في الخطوة 3
+          xcode-project build-ipa \
+            --workspace "$(find . -name "*.xcworkspace" | head -1)" \
+            --scheme "$(find . -name "*.xcworkspace" | xargs basename -s .xcworkspace | head -1)"
     artifacts:
       - build/ios/ipa/*.ipa
