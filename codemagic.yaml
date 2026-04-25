@@ -12,11 +12,11 @@ workflows:
       - name: Set up code signing
         script: | 
           keychain initialize
-          # قمت بتعديل الأمر ليقرأ المتغيرات بشكل صحيح تماماً
+          # أضفنا علامات التنصيص هنا لحل مشكلة المسافات في المفتاح
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
-            --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
-            --key-id $APP_STORE_CONNECT_KEY_ID \
-            --p8-key $APP_STORE_CONNECT_KEY \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --p8-key "$APP_STORE_CONNECT_KEY" \
             --create
           keychain add-certificates
       - name: Get Flutter packages
