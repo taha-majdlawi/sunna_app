@@ -12,7 +12,12 @@ workflows:
       - name: Set up code signing
         script: | 
           keychain initialize
-          app-store-connect fetch-signing-files "com.example.sunaaApp" --create
+          # قمت بتعديل الأمر ليقرأ المتغيرات بشكل صحيح تماماً
+          app-store-connect fetch-signing-files "com.example.sunaaApp" \
+            --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
+            --key-id $APP_STORE_CONNECT_KEY_ID \
+            --p8-key $APP_STORE_CONNECT_KEY \
+            --create
           keychain add-certificates
       - name: Get Flutter packages
         script: flutter pub get
@@ -21,4 +26,3 @@ workflows:
           flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
-    # حذفنا قسم النشر (publishing) من هنا لأنه هو مسبب المشكلة حالياً
