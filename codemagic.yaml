@@ -26,12 +26,16 @@ workflows:
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # سنقوم ببناء الـ Archive فقط بدون توقيع يدوي معقد
+          # 1. بناء الـ Archive لـ iOS حصراً
           flutter build ipa --release --no-codesign
           
-          # ثم نستخدم الأداة المخصصة للتصدير باستخدام الشهادات المتوفرة
+          # 2. البحث عن الـ workspace الصحيح داخل مجلد ios فقط لضمان عدم الخلط مع macos
+          WORKSPACE=$(find ios -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          
+          # 3. التصدير النهائي باستخدام أداة Codemagic مع تحديد المسار
           xcode-project build-ipa \
-            --workspace "$(find . -name "*.xcworkspace" | head -1)" \
-            --scheme "$(find . -name "*.xcworkspace" | xargs basename -s .xcworkspace | head -1)"
+            --workspace "$WORKSPACE" \
+            --scheme "$SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
