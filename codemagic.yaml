@@ -9,10 +9,11 @@ workflows:
       groups:
         - app_store_credentials 
     scripts:
-      - name: Set up code signing settings on Codemagic
+      - name: Set up code signing settings
         script: | 
           keychain initialize
-          app-store-connect fetch-signing-files $(bundle_id) --project-type ios --create
+          # سيقوم كودماجيك بمحاولة جلب ملفات التوقيع آلياً باستخدام البيانات التي أدخلتها في المجموعات
+          app-store-connect fetch-signing-files "com.your.bundle.id" --project-type ios --create
           keychain add-certificates
       - name: Get Flutter packages
         script: flutter pub get
@@ -24,7 +25,7 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        # هنا نستخدم المتغيرات التي أضفتها أنت في المجموعات (Groups)
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        key_id: $APP_STORE_CONNECT_KEY_ID
-        p8_key: $APP_STORE_CONNECT_KEY
+        # تأكد أن هذه الأسماء تطابق تماماً ما وضعته في واجهة Codemagic
+        issuer_id: ${APP_STORE_CONNECT_ISSUER_ID}
+        key_id: ${APP_STORE_CONNECT_KEY_ID}
+        p8_key: ${APP_STORE_CONNECT_KEY}
