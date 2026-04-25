@@ -25,7 +25,4 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        # تأكد أن هذه الأسماء تطابق تماماً ما وضعته في واجهة Codemagic
-        issuer_id: ${APP_STORE_CONNECT_ISSUER_ID}
-        key_id: ${APP_STORE_CONNECT_KEY_ID}
-        p8_key: ${APP_STORE_CONNECT_KEY}
+        auth: integration  # هذا السطر سيعمل الآن لأنك فعلت الـ Integration
