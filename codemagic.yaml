@@ -8,7 +8,7 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials
+        - app_store_credentials # تأكد أن المتغيرات الأربعة موجودة هنا
 
     scripts:
       - name: Set up code signing
@@ -16,8 +16,10 @@ workflows:
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
 
-          # إنشاء الشهادة وجلب الملفات
+          # 1. تنظيف شامل لأي شهادات قديمة وجلب شهادة جديدة بمفتاحها الخاص
           app-store-connect certificates create --type IOS_DISTRIBUTION --auth-key-path /tmp/apple_key.p8 --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_ID" --save || true
+          
+          # 2. جلب ملف التعريف (Profile)
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -27,27 +29,62 @@ workflows:
 
           keychain add-certificates
           
-          # إعداد ملف المشروع برمجياً (بدلاً من الأوامر المرفوضة)
-          # 1. تعيين فريق التطوير لجميع الأهداف
-          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
-          # 2. إجبار المشروع على التوقيع اليدوي لضمان استخدام البروفايل المجلوب
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          # 3. استخراج الـ UUID والاسم للملف لضمان الربط اليدوي القسري
+          PROVISIONING_PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | xargs grep -aA1 "UUID" | grep -v "UUID" | grep -oE "[-A-Z0-9]{36}" | head -n 1)
+          echo "export PROVISIONING_PROFILE_UUID=$PROVISIONING_PROFILE_UUID" >> $CM_ENV
           
           xcode-project use-profiles
 
       - name: Get Flutter packages
         script: flutter pub get
 
-      - name: Build iOS IPA
+      - name: Build iOS IPA (The Nuclear Option)
         script: |
-          # بناء ملفات فلوتر
+          # بناء ملفات iOS الأساسية
           flutter build ios --release --no-codesign
 
-          # البناء النهائي وتحويله لـ IPA
-          # لاحظ حذفنا الأوامر التي سببت أخطاء "invalid choice"
-          xcode-project build-ipa \
-            --workspace ios/Runner.xcworkspace \
-            --scheme Runner
-            
+          # 4. تعديل ملف المشروع برمجياً لإزالة أي إعدادات يدوية معارضة
+          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+
+          # 5. الأرشفة القسرية - نحن نخبر Xcode بكل شيء يدوياً هنا
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE="$PROVISIONING_PROFILE_UUID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            archive
+
+          # 6. إنشاء ملف خيارات التصدير (ExportOptions) فورياً لضمان الدقة
+          cat <<EOF > /tmp/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.example.sunaaApp</key>
+                  <string>$PROVISIONING_PROFILE_UUID</string>
+              </dict>
+          </dict>
+          </plist>
+          EOF
+
+          # 7. التصدير النهائي للـ IPA
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -allowProvisioningUpdates
+
     artifacts:
       - build/ios/ipa/*.ipa
