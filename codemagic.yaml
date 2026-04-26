@@ -3,28 +3,30 @@ workflows:
     name: Sunaa App iOS Release
     instance_type: mac_mini_m2
     max_build_duration: 60
+
     environment:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials 
+        - app_store_credentials
+
     scripts:
       - name: Set up code signing
-        script: | 
+        script: |
           keychain initialize
+
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
-          
-          # جلب الشهادات مع إجبارية التحديث لضمان سحب ما تم تعديله في الحساب
+
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --p8-key /tmp/apple_key.p8 \
             --type IOS_APP_STORE \
             --create
-            
+
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
-          
+
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -35,23 +37,23 @@ workflows:
               <key>teamID</key>
               <string>$APPLE_TEAM_ID</string>
               <key>signingStyle</key>
-              <string>manual</string>
+              <string>automatic</string>
               <key>manageAppVersionAndBuildNumber</key>
               <true/>
           </dict>
           </plist>
           EOF
+
           rm /tmp/apple_key.p8
+
       - name: Get Flutter packages
         script: flutter pub get
+
       - name: Build iOS IPA
-        script: | 
-          flutter build ipa --release --no-codesign --build-number=25
-          
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -allowProvisioningUpdates
+        script: |
+          flutter build ipa --release \
+            --build-number=25 \
+            --export-options-plist=/Users/builder/export_options.plist
+
     artifacts:
       - build/ios/ipa/*.ipa
