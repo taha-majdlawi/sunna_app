@@ -26,7 +26,7 @@ workflows:
 
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
-          xcode-project set-development-team "$APPLE_TEAM_ID"
+         sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
