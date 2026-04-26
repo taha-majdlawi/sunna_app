@@ -14,7 +14,6 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
 
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
@@ -26,7 +25,11 @@ workflows:
 
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
-         sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
+          
+          # فرض الـ Team ID داخل ملف إعدادات Xcode
+          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
+          
+          # إنشاء ملف إعدادات التصدير
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -49,14 +52,17 @@ workflows:
 
       - name: Build iOS IPA
         script: |
+          # بناء ملفات الفلوتر بدون توقيع أولاً
           flutter build ios --release --no-codesign
 
+          # إنشاء الأرشيف (Archive)
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
             archive
 
+          # تصدير ملف IPA النهائي باستخدام ملف الإعدادات
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
