@@ -13,23 +13,26 @@ workflows:
         script: | 
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
+          
+          # إجبار النظام على إنشاء شهادة توزيع جديدة وملف تعريف جديد
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --p8-key /tmp/apple_key.p8 \
             --type IOS_APP_STORE \
             --create
+            
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
           
-          # إنشاء ملف التصدير يدوياً
+          # إنشاء ملف التصدير المحدث
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>app-store</string>
+              <string>app-store-connect</string>
               <key>teamID</key>
               <string>$APPLE_TEAM_ID</string>
               <key>signingStyle</key>
@@ -44,14 +47,13 @@ workflows:
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # 1. بناء الأرشيف فقط بدون توقيع لتجنب الخطأ
-          flutter build ipa --release --no-codesign --build-number=23
+          # بناء الأرشيف
+          flutter build ipa --release --no-codesign --build-number=24
           
-          # 2. تحويل الأرشيف إلى ملف IPA يدوياً باستخدام ملف الإعدادات والشهادات المجلوبة
+          # التصدير اليدوي باستخدام الأداة المباشرة
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -allowProvisioningUpdates
+            -exportOptionsPlist /Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
