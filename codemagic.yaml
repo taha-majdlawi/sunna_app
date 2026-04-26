@@ -15,7 +15,6 @@ workflows:
       
       - name: Fetch signing files
         script: |
-          # بما أن الملفات موجودة في الـ UI، هذا الأمر سيقوم بربطها فوراً
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -31,16 +30,40 @@ workflows:
 
       - name: Build iOS IPA
         script: |
-          # سنستخدم أمر فلوتر الأساسي للبناء، هو الأذكى في التعامل مع التوقيع
-          # عندما يجد الشهادات في الـ Keychain
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --no-codesign # سنترك لـ xcode-project التوقيع النهائي
+          # 1. بناء الأرشيف أولاً (هذه الخطوة نجحت سابقاً وسنثبتها)
+          flutter build ipa --release --no-codesign
 
-          # التحويل النهائي لملف IPA
-          xcode-project build-ipa \
-            --workspace ios/Runner.xcworkspace \
-            --scheme Runner
+          # 2. استخراج الـ UUID الخاص بالبروفايل الذي ظهر في صورك
+          export PROV_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | xargs grep -aA1 "UUID" | grep -v "UUID" | grep -oE "[-A-Z0-9]{36}" | head -n 1)
+
+          # 3. إنشاء ملف ExportOptions يدوي لضمان عدم ضياعه
+          cat <<EOF > /tmp/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.example.sunaaApp</key>
+                  <string>$PROV_UUID</string>
+              </dict>
+          </dict>
+          </plist>
+          EOF
+
+          # 4. التصدير النهائي باستخدام الأرشيف الذي بناه فلاتر فعلياً
+          # هذا السطر سيتجاوز كل أخطاء Xcode السابقة
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -allowProvisioningUpdates
             
     artifacts:
       - build/ios/ipa/*.ipa
