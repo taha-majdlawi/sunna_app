@@ -15,19 +15,19 @@ workflows:
         script: |
           keychain initialize
           
-          # جلب ملفات التوقيع
+          # حفظ المفتاح في ملف فعلي لتجنب مشاكل الـ CLI
+          echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
+
+          # جلب ملفات التوقيع باستخدام الأمر المتوافق
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --p8-key "$APP_STORE_CONNECT_KEY" \
+            --auth-key-path /tmp/apple_key.p8 \
             --type IOS_APP_STORE \
             --create
 
           keychain add-certificates
-          
-          # تحديث المشروع لاستخدام ملفات التعريف المجلوبة وفريق التطوير
-          xcode-project use-profiles --set-target-bundle-id
-          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
+          xcode-project use-profiles
 
       - name: Get Flutter packages
         script: flutter pub get
@@ -37,11 +37,20 @@ workflows:
           # بناء ملفات iOS الأساسية
           flutter build ios --release --no-codesign
 
-          # استخدام أمر build-ipa مع تحديد ملفات التعريف بشكل صريح
+          # البناء والارشفة باستخدام xcodebuild مباشرة مع تمرير الفريق
+          # هذه الطريقة تتخطى أخطاء الأدوات وتتحدث مع Xcode مباشرة
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Manual \
+            archive
+
+          # تحويل الأرشيف إلى IPA
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
-            --scheme Runner \
-            --provisioning-profile "com.example.sunaaApp"
+            --scheme Runner
             
     artifacts:
       - build/ios/ipa/*.ipa
