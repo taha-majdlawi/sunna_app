@@ -14,7 +14,7 @@ workflows:
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
           
-          # إجبار النظام على إنشاء شهادة توزيع جديدة وملف تعريف جديد
+          # جلب الشهادات مع إجبارية التحديث لضمان سحب ما تم تعديله في الحساب
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -25,7 +25,6 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
           
-          # إنشاء ملف التصدير المحدث
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -47,13 +46,12 @@ workflows:
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # بناء الأرشيف
-          flutter build ipa --release --no-codesign --build-number=24
+          flutter build ipa --release --no-codesign --build-number=25
           
-          # التصدير اليدوي باستخدام الأداة المباشرة
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
-            -exportOptionsPlist /Users/builder/export_options.plist
+            -exportOptionsPlist /Users/builder/export_options.plist \
+            -allowProvisioningUpdates
     artifacts:
       - build/ios/ipa/*.ipa
