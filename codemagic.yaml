@@ -16,10 +16,8 @@ workflows:
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
 
-          # جلب أو إنشاء شهادة توزيع جديدة مع مفتاحها الخاص (هذا هو الحل)
+          # إنشاء الشهادة وجلب الملفات
           app-store-connect certificates create --type IOS_DISTRIBUTION --auth-key-path /tmp/apple_key.p8 --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" --key-id "$APP_STORE_CONNECT_KEY_ID" --save || true
-
-          # جلب ملفات التوقيع وربطها بالشهادة الجديدة
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -28,6 +26,13 @@ workflows:
             --create
 
           keychain add-certificates
+          
+          # إعداد ملف المشروع برمجياً (بدلاً من الأوامر المرفوضة)
+          # 1. تعيين فريق التطوير لجميع الأهداف
+          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
+          # 2. إجبار المشروع على التوقيع اليدوي لضمان استخدام البروفايل المجلوب
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          
           xcode-project use-profiles
 
       - name: Get Flutter packages
@@ -38,10 +43,8 @@ workflows:
           # بناء ملفات فلوتر
           flutter build ios --release --no-codesign
 
-          # إجبار جميع الـ Pods والأهداف على استخدام فريق التطوير الخاص بك لتجنب خطأ (OrderedSet)
-          xcode-project set-development-team --project ios/Runner.xcodeproj "$APPLE_TEAM_ID"
-
-          # بناء الـ IPA باستخدام أداة Codemagic التي ستتولى إدارة الـ Manual Signing تلقائياً
+          # البناء النهائي وتحويله لـ IPA
+          # لاحظ حذفنا الأوامر التي سببت أخطاء "invalid choice"
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
             --scheme Runner
