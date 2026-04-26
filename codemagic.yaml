@@ -16,7 +16,7 @@ workflows:
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
 
-          # تأكد أن الباقة com.example.sunaaApp مطابقة لما في App Store Connect
+          # جلب ملفات التوقيع (تأكد من الـ Bundle ID هنا)
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -26,39 +26,29 @@ workflows:
 
           keychain add-certificates
           
-          # هذه الأوامر هي الأهم لحل مشكلتك
+          # إعداد المشروع لاستخدام ملفات التعريف المجلوبة
           xcode-project use-profiles --set-target-bundle-id
           xcode-project set-development-team --project ios/Runner.xcodeproj "$APPLE_TEAM_ID"
-
-          # إنشاء ملف خيارات التصدير
-          cat <<EOF > /Users/builder/export_options.plist
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>teamID</key>
-              <string>$APPLE_TEAM_ID</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-          </dict>
-          </plist>
-          EOF
 
       - name: Get Flutter packages
         script: flutter pub get
 
       - name: Build iOS IPA
         script: |
-          # بناء ملفات فلوتر
+          # بناء ملفات فلوتر مع تنظيف مسبق لضمان عدم وجود ملفات قديمة
+          flutter clean
+          flutter pub get
           flutter build ios --release --no-codesign
 
-          # محاولة البناء مع تمرير الـ Team ID مباشرة في أمر xcodebuild
+          # تنفيذ الأرشفة مع تفعيل تحديث ملفات التعريف تلقائياً
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath /tmp/apple_key.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             archive
 
@@ -66,8 +56,11 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
-            -exportOptionsPlist /Users/builder/export_options.plist \
-            -allowProvisioningUpdates
-            
+            -exportOptionsPlist ios/Runner/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath /tmp/apple_key.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
     artifacts:
       - build/ios/ipa/*.ipa
