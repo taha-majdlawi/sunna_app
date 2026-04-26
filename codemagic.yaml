@@ -14,53 +14,33 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
-
-          # جلب ملفات التوقيع (تأكد من الـ Bundle ID هنا)
+          
+          # جلب ملفات التوقيع باستخدام الصيغة المتوافقة
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
-            --p8-key /tmp/apple_key.p8 \
+            --p8-key "$APP_STORE_CONNECT_KEY" \
             --type IOS_APP_STORE \
             --create
 
           keychain add-certificates
           
-          # إعداد المشروع لاستخدام ملفات التعريف المجلوبة
-          xcode-project use-profiles --set-target-bundle-id
-          xcode-project set-development-team --project ios/Runner.xcodeproj "$APPLE_TEAM_ID"
+          # استخدام البروفايلات التي تم جلبها
+          xcode-project use-profiles
 
       - name: Get Flutter packages
         script: flutter pub get
 
       - name: Build iOS IPA
         script: |
-          # بناء ملفات فلوتر مع تنظيف مسبق لضمان عدم وجود ملفات قديمة
-          flutter clean
-          flutter pub get
+          # بناء ملفات فلوتر
           flutter build ios --release --no-codesign
 
-          # تنفيذ الأرشفة مع تفعيل تحديث ملفات التعريف تلقائياً
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath /tmp/apple_key.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            archive
-
-          # تصدير الـ IPA
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/Runner/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath /tmp/apple_key.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
-
+          # استخدام أداة Codemagic المدمجة للبناء والتوقيع دفعة واحدة (أكثر استقراراً)
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner \
+            --bundle-id "com.example.sunaaApp"
+            
     artifacts:
       - build/ios/ipa/*.ipa
