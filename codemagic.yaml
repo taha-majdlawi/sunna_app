@@ -15,7 +15,7 @@ workflows:
         script: |
           keychain initialize
           
-          # جلب ملفات التوقيع (تأكد أن com.example.sunaaApp هو المعرف الصحيح)
+          # جلب ملفات التوقيع - تأكد أن com.example.sunaaApp مسجل في حساب آبل
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -31,10 +31,14 @@ workflows:
 
       - name: Build iOS IPA
         script: |
-          # بناء ملف IPA مباشرة باستخدام Flutter (هذا الأمر يغنينا عن xcodebuild اليدوي)
-          # تأكد من تمرير الـ export-options إذا كان التوقيع لا يزال يواجه مشاكل
-          flutter build ios --release --export-bundle-id="com.example.sunaaApp"
+          # بناء ملفات iOS الأساسية
+          flutter build ios --release --no-codesign
 
+          # استخدام الأداة الرسمية للبناء وتحويلها لـ IPA
+          # ستقوم الأداة تلقائياً باكتشاف الـ Bundle ID والـ Team ID من الملفات التي جلبناها أعلاه
+          xcode-project build-ipa \
+            --workspace ios/Runner.xcworkspace \
+            --scheme Runner
+            
     artifacts:
       - build/ios/ipa/*.ipa
-      - /Users/builder/clone/build/ios/iphoneos/*.app
