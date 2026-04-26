@@ -14,9 +14,8 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
-          
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
-          
+
           # جلب ملفات التوقيع
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
@@ -27,10 +26,30 @@ workflows:
 
           keychain add-certificates
           
-          # 1. إجبار المشروع على التوقيع التلقائي (Automatic Signing)
-          sed -i '' 's/ProvisioningStyle = Manual;/ProvisioningStyle = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj
-          
-          # 2. إنشاء ملف ExportOptions.plist برمجياً لأنه مفقود في مشروعك
+          # استخراج الـ UUID الخاص بملف التعريف المجلوب وحفظه في متغير بيئة
+          PROVISIONING_PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | xargs grep -aA1 "UUID" | grep -oE "[-A-Z0-9]{36}")
+          echo "export PROVISIONING_PROFILE_UUID=$PROVISIONING_PROFILE_UUID" >> $CM_ENV
+
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Build iOS IPA
+        script: |
+          # بناء ملفات فلوتر
+          flutter build ios --release --no-codesign
+
+          # الأرشفة القسرية باستخدام الـ UUID المستخرج
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE="$PROVISIONING_PROFILE_UUID" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            archive
+
+          # إنشاء ملف ExportOptions في نفس الخطوة لضمان وجوده
           cat <<EOF > /tmp/ExportOptions.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -42,27 +61,20 @@ workflows:
               <string>$APPLE_TEAM_ID</string>
               <key>signingStyle</key>
               <string>manual</string>
-              <key>manageAppVersionAndBuildNumber</key>
-              <true/>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.example.sunaaApp</key>
+                  <string>$PROVISIONING_PROFILE_UUID</string>
+              </dict>
           </dict>
           </plist>
           EOF
 
-          xcode-project use-profiles
-
-      - name: Get Flutter packages
-        script: flutter pub get
-
-      - name: Build iOS IPA
-        script: |
-          # بناء ملفات فلوتر
-          flutter build ios --release --no-codesign
-
-          # استخدام أداة Codemagic للبناء مع تمرير ملف الإعدادات الذي أنشأناه للتو
-          xcode-project build-ipa \
-            --workspace ios/Runner.xcworkspace \
-            --scheme Runner \
-            --export-options-plist /tmp/ExportOptions.plist
+          # تصدير الـ IPA باستخدام الملف الذي أنشأناه
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /tmp/ExportOptions.plist
             
     artifacts:
       - build/ios/ipa/*.ipa
