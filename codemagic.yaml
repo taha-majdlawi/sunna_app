@@ -16,6 +16,7 @@ workflows:
           keychain initialize
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
 
+          # تأكد أن الباقة com.example.sunaaApp مطابقة لما في App Store Connect
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -24,12 +25,12 @@ workflows:
             --create
 
           keychain add-certificates
+          
+          # هذه الأوامر هي الأهم لحل مشكلتك
           xcode-project use-profiles --set-target-bundle-id
-          
-          # فرض الـ Team ID داخل ملف إعدادات Xcode
-          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
-          
-          # إنشاء ملف إعدادات التصدير
+          xcode-project set-development-team --project ios/Runner.xcodeproj "$APPLE_TEAM_ID"
+
+          # إنشاء ملف خيارات التصدير
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -45,29 +46,28 @@ workflows:
           </plist>
           EOF
 
-          rm /tmp/apple_key.p8
-
       - name: Get Flutter packages
         script: flutter pub get
 
       - name: Build iOS IPA
         script: |
-          # بناء ملفات الفلوتر بدون توقيع أولاً
+          # بناء ملفات فلوتر
           flutter build ios --release --no-codesign
 
-          # إنشاء الأرشيف (Archive)
+          # محاولة البناء مع تمرير الـ Team ID مباشرة في أمر xcodebuild
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -archivePath build/ios/archive/Runner.xcarchive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             archive
 
-          # تصدير ملف IPA النهائي باستخدام ملف الإعدادات
+          # تصدير الـ IPA
           xcodebuild -exportArchive \
             -archivePath build/ios/archive/Runner.xcarchive \
             -exportPath build/ios/ipa \
             -exportOptionsPlist /Users/builder/export_options.plist \
             -allowProvisioningUpdates
-
+            
     artifacts:
       - build/ios/ipa/*.ipa
