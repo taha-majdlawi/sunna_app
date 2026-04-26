@@ -22,7 +22,7 @@ workflows:
           keychain add-certificates
           xcode-project use-profiles --set-target-bundle-id
           
-          # إنشاء ملف التصدير يدوياً لحل مشكلة "does not exist"
+          # إنشاء ملف التصدير يدوياً
           cat <<EOF > /Users/builder/export_options.plist
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -32,24 +32,26 @@ workflows:
               <string>app-store</string>
               <key>teamID</key>
               <string>$APPLE_TEAM_ID</string>
-              <key>uploadBitcode</key>
-              <false/>
-              <key>compileBitcode</key>
-              <false/>
               <key>signingStyle</key>
               <string>manual</string>
+              <key>manageAppVersionAndBuildNumber</key>
+              <true/>
           </dict>
           </plist>
           EOF
-          
           rm /tmp/apple_key.p8
       - name: Get Flutter packages
         script: flutter pub get
       - name: Build iOS IPA
         script: | 
-          # استخدام ملف الإعدادات الذي أنشأناه للتو
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist \
-            --build-number=23
+          # 1. بناء الأرشيف فقط بدون توقيع لتجنب الخطأ
+          flutter build ipa --release --no-codesign --build-number=23
+          
+          # 2. تحويل الأرشيف إلى ملف IPA يدوياً باستخدام ملف الإعدادات والشهادات المجلوبة
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist /Users/builder/export_options.plist \
+            -allowProvisioningUpdates
     artifacts:
       - build/ios/ipa/*.ipa
