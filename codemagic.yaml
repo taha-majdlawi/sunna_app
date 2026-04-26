@@ -8,17 +8,15 @@ workflows:
       xcode: latest
       groups:
         - app_store_credentials
-      vars:
-        BUNDLE_ID: "com.example.sunaaApp"
 
     scripts:
       - name: Set up keychain
         script: keychain initialize
       
-      - name: Fetch signing files from Codemagic UI
+      - name: Fetch signing files
         script: |
-          # جلب الملفات التي تظهر في صورك (sunna app certificate & profile)
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+          # بما أن الملفات موجودة في الـ UI، هذا الأمر سيقوم بربطها فوراً
+          app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --p8-key "$APP_STORE_CONNECT_KEY" \
@@ -33,16 +31,13 @@ workflows:
 
       - name: Build iOS IPA
         script: |
-          # بناء ملفات فلوتر
-          flutter build ios --release --no-codesign
-          
-          # الخطوة القاتلة للخطأ: 
-          # نقوم بتعديل ملف المشروع لإجبار Xcode على رؤية البروفايل الذي أنشأته (sunna app profile)
-          # وتغيير الفريق ليتطابق مع (TAHA MAJDLAWI) الظاهر في صورتك
-          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' ios/Runner.xcodeproj/project.pbxproj
+          # سنستخدم أمر فلوتر الأساسي للبناء، هو الأذكى في التعامل مع التوقيع
+          # عندما يجد الشهادات في الـ Keychain
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --no-codesign # سنترك لـ xcode-project التوقيع النهائي
 
-          # استخدام أداة Codemagic التي ستربط الآن بين الشهادة والبروفايل اللذين أصبحا جاهزين
+          # التحويل النهائي لملف IPA
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
             --scheme Runner
