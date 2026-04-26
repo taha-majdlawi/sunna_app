@@ -17,7 +17,7 @@ workflows:
           
           echo "$APP_STORE_CONNECT_KEY" > /tmp/apple_key.p8
           
-          # جلب ملفات التوقيع (خطوة احتياطية)
+          # جلب ملفات التوقيع
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
@@ -27,10 +27,27 @@ workflows:
 
           keychain add-certificates
           
-          # إجبار ملف المشروع على وضع التوقيع التلقائي واستخدام الفريق الصحيح
+          # 1. إجبار المشروع على التوقيع التلقائي (Automatic Signing)
           sed -i '' 's/ProvisioningStyle = Manual;/ProvisioningStyle = Automatic;/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" ios/Runner.xcodeproj/project.pbxproj
           
+          # 2. إنشاء ملف ExportOptions.plist برمجياً لأنه مفقود في مشروعك
+          cat <<EOF > /tmp/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>$APPLE_TEAM_ID</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>manageAppVersionAndBuildNumber</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
           xcode-project use-profiles
 
       - name: Get Flutter packages
@@ -38,17 +55,14 @@ workflows:
 
       - name: Build iOS IPA
         script: |
-          # بناء ملف IPA باستخدام Flutter مباشرة مع السماح بتحديثات التوقيع
-          # هذا السطر هو الأقوى لأنه يدمج خطوات Xcode كلها في أمر واحد مدعوم
-          flutter build ipa --release \
-            --export-options-plist=ios/Runner/ExportOptions.plist \
-            --build-number=$BUILD_NUMBER \
-            --no-codesign # سنوقع في الخطوة التالية لضمان الدقة
+          # بناء ملفات فلوتر
+          flutter build ios --release --no-codesign
 
-          # التنفيذ النهائي للأرشفة والتصدير عبر أداة Codemagic المستقرة
+          # استخدام أداة Codemagic للبناء مع تمرير ملف الإعدادات الذي أنشأناه للتو
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
-            --scheme Runner
+            --scheme Runner \
+            --export-options-plist /tmp/ExportOptions.plist
             
     artifacts:
       - build/ios/ipa/*.ipa
