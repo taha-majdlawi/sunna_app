@@ -7,37 +7,69 @@ workflows:
       flutter: stable
       xcode: latest
       groups:
-        - app_store_credentials # تأكد أن المتغيرات الأربعة للـ API Key هنا
+        - app_store_credentials
+      vars:
+        # تأكد 100% أن هذا هو الـ UUID اللي جنبه صح أخضر في كود ماجيك
+        PROV_PROFILE_UUID: "ضع_الـ_UUID_هنا" 
 
     scripts:
       - name: Set up keychain
         script: keychain initialize
       
-      - name: Fetch and Link Signing Files
+      - name: Fetch signing files
         script: |
-          # هذا الأمر سيقوم بربط الشهادة بالبروفايل برمجياً ويحملهما للماك
           app-store-connect fetch-signing-files "com.example.sunaaApp" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --p8-key "$APP_STORE_CONNECT_KEY" \
             --type IOS_APP_STORE \
             --create
-          
           keychain add-certificates
           xcode-project use-profiles
 
       - name: Get Flutter packages
         script: flutter pub get
 
+      - name: Force Project Signing Settings
+        script: |
+          # هذا الجزء سيقوم بتعديل ملف المشروع لإجبار Xcode على الهوية الجديدة
+          PROJECT_FILE="ios/Runner.xcodeproj/project.pbxproj"
+          
+          # تعيين الـ Team ID لجميع الأهداف
+          sed -i '' "s/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/g" "$PROJECT_FILE"
+          
+          # إزالة أي تعيين قديم للبروفايلات
+          sed -i '' "/PROVISIONING_PROFILE/d" "$PROJECT_FILE"
+          sed -i '' "/PROVISIONING_PROFILE_SPECIFIER/d" "$PROJECT_FILE"
+          
+          # إضافة البروفايل الجديد قسرياً في خانة الإعدادات
+          sed -i '' "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g" "$PROJECT_FILE"
+          sed -i '' "s/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g" "$PROJECT_FILE"
+          
+          # حقن الـ UUID الجديد
+          sed -i '' "/SDKROOT = iphoneos;/a\\
+          PROVISIONING_PROFILE = \"$PROV_PROFILE_UUID\";\\
+          PROVISIONING_PROFILE_SPECIFIER = \"$PROV_PROFILE_UUID\";" "$PROJECT_FILE"
+
       - name: Build iOS IPA
         script: |
-          # بناء الأرشيف أولاً
+          # بناء الأرشيف يدوياً تماماً لتجاوز أي تعليق في أداة كود ماجيك
           flutter build ios --release --no-codesign
+          
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PROVISIONING_PROFILE="$PROV_PROFILE_UUID" \
+            archive
 
-          # البناء والتوقيع النهائي
+          # التصدير النهائي باستخدام الأرشيف الذي تم بناؤه
           xcode-project build-ipa \
             --workspace ios/Runner.xcworkspace \
-            --scheme Runner
+            --scheme Runner \
+            --archive-path build/ios/archive/Runner.xcarchive
             
     artifacts:
       - build/ios/ipa/*.ipa
